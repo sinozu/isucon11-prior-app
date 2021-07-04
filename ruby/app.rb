@@ -52,11 +52,6 @@ class App < Sinatra::Base
       schedule[:reserved] = reservations.size
     end
 
-    def get_reservations_count(schedule)
-      reservations = db.xquery('SELECT * FROM `reservations` WHERE `schedule_id` = ?', schedule[:id])
-      schedule[:reserved] = reservations.size
-    end
-
     def get_user(id)
       user = db.xquery('SELECT * FROM `users` WHERE `id` = ? LIMIT 1', id).first
       user[:email] = '' if !current_user || !current_user[:staff]
@@ -161,10 +156,7 @@ class App < Sinatra::Base
   end
 
   get '/api/schedules' do
-    schedules = db.xquery('SELECT * FROM `schedules` ORDER BY `id` DESC');
-    schedules.each do |schedule|
-      get_reservations_count(schedule)
-    end
+    schedules = db.xquery('SELECT s.*, count(r.id) AS reserved FROM `schedules` AS s LEFT JOIN `reservations` AS r ON `r`.`schedule_id` = `s`.`id` GROUP BY s.id ORDER BY `s`.`id` DESC');
 
     json(schedules.to_a)
   end
