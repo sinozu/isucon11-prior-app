@@ -67,7 +67,7 @@ class App < Sinatra::Base
         reservation[:created_at] = r[:reservation_created_at]
         user = {}
         user[:id] = r[:user_id]
-        if current[:id] == r[:user_id] || current[:staff]
+        if current.present? && (current[:id] == r[:user_id] || current[:staff])
           user[:email] = r[:email]
         else
           user[:email] = ''
