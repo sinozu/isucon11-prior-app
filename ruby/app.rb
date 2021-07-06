@@ -44,8 +44,9 @@ class App < Sinatra::Base
     end
 
     def get_reservations(schedule)
+      current = current_user
       # TODO: user N+1対策する
-      query <<~EOS
+      query = <<~EOS
         SELECT
           r.id as reservation_id,
           r.schedule_id,
@@ -59,13 +60,18 @@ class App < Sinatra::Base
         WHERE schedule_id = ?
       EOS
       reservations = db.xquery(query, schedule[:id]).map do |r|
-        reservation[:id] = r[:id]
+        reservation = {}
+        reservation[:id] = r[:reservation_id]
         reservation[:schedule_id] = r[:schedule_id]
         reservation[:user_id] = r[:user_id]
         reservation[:created_at] = r[:reservation_created_at]
-        user = []
+        user = {}
         user[:id] = r[:user_id]
-        user[:email] = r[:email]
+        if current[:id] == r[:user_id] || current[:staff]
+          user[:email] = r[:email]
+        else
+          user[:email] = ''
+        end
         user[:nickname] = r[:nickname]
         user[:created_at] = r[:user_created_at]
         reservation[:user] = user
