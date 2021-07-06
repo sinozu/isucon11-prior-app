@@ -44,8 +44,31 @@ class App < Sinatra::Base
     end
 
     def get_reservations(schedule)
-      reservations = db.xquery('SELECT * FROM `reservations` WHERE `schedule_id` = ?', schedule[:id]).map do |reservation|
-        reservation[:user] = get_user(reservation[:user_id])
+      # TODO: user N+1対策する
+      query <<~EOS
+        SELECT
+          r.id as reservation_id,
+          r.schedule_id,
+          r.user_id,
+          r.created_at AS reservation_created_at,
+          u.email,
+          u.nickname,
+          u.created_at AS user_created_at
+        FROM reservations AS r
+        INNER JOIN users AS u ON u.id = r.user_id
+        WHERE schedule_id = ?
+      EOS
+      reservations = db.xquery(query, schedule[:id]).map do |r|
+        reservation[:id] = r[:id]
+        reservation[:schedule_id] = r[:schedule_id]
+        reservation[:user_id] = r[:user_id]
+        reservation[:created_at] = r[:reservation_created_at]
+        user = []
+        user[:id] = r[:user_id]
+        user[:email] = r[:email]
+        user[:nickname] = r[:nickname]
+        user[:created_at] = r[:user_created_at]
+        reservation[:user] = user
         reservation
       end
       schedule[:reservations] = reservations
@@ -142,6 +165,7 @@ class App < Sinatra::Base
 
       capacity = tx.xquery('SELECT `capacity` FROM `schedules` WHERE `id` = ? LIMIT 1', schedule_id).first[:capacity]
       reserved = 0
+      # TODO: N+1?
       tx.xquery('SELECT * FROM `reservations` WHERE `schedule_id` = ?', schedule_id).each do
         reserved += 1
       end
