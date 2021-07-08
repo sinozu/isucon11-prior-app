@@ -6,7 +6,8 @@ CREATE TABLE `users` (
   `email`      VARCHAR(255) NOT NULL DEFAULT '',
   `nickname`   VARCHAR(120) NOT NULL DEFAULT '',
   `staff`      BOOLEAN NOT NULL DEFAULT false,
-  `created_at` DATETIME(6) NOT NULL
+  `created_at` DATETIME(6) NOT NULL,
+  KEY `index_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 
 DROP TABLE IF EXISTS `schedules`;
@@ -22,5 +23,6 @@ CREATE TABLE `reservations` (
   `id`          VARCHAR(255) PRIMARY KEY NOT NULL,
   `schedule_id` VARCHAR(255) NOT NULL,
   `user_id`     VARCHAR(255) NOT NULL,
-  `created_at`  DATETIME(6) NOT NULL
+  `created_at`  DATETIME(6) NOT NULL,
+  KEY `index_schedule_id` (`schedule_id`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
