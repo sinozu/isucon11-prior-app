@@ -100,8 +100,7 @@ class App < Sinatra::Base
       tx.query('TRUNCATE `schedules`')
       tx.query('TRUNCATE `users`')
 
-      id = generate_id('users', tx)
-      tx.xquery('INSERT INTO `users` (`id`, `email`, `nickname`, `staff`, `created_at`) VALUES (?, ?, ?, true, NOW(6))', id, 'isucon2021_prior@isucon.net', 'isucon')
+      tx.xquery('INSERT INTO `users` (`email`, `nickname`, `staff`, `created_at`) VALUES (?, ?, true, NOW(6))', 'isucon2021_prior@isucon.net', 'isucon')
     end
 
     json(language: 'ruby')
@@ -116,11 +115,10 @@ class App < Sinatra::Base
     nickname = ''
 
     user = transaction do |tx|
-      id = generate_id('users', tx)
       email = params[:email]
       nickname = params[:nickname]
-      tx.xquery('INSERT INTO `users` (`id`, `email`, `nickname`, `created_at`) VALUES (?, ?, ?, NOW(6))', id, email, nickname)
-      created_at = tx.xquery('SELECT `created_at` FROM `users` WHERE `id` = ? LIMIT 1', id).first[:created_at]
+      tx.xquery('INSERT INTO `users` (`id`, `email`, `nickname`, `created_at`) VALUES (?, ?, NOW(6))', email, nickname)
+      created_at = tx.xquery('SELECT `created_at` FROM `users` WHERE `id` = LAST_INSERT_ID() LIMIT 1').first[:created_at]
 
       { id: id, email: email, nickname: nickname, created_at: created_at }
     end
@@ -146,12 +144,11 @@ class App < Sinatra::Base
     required_staff_login!
 
     transaction do |tx|
-      id = generate_id('schedules', tx)
       title = params[:title].to_s
       capacity = params[:capacity].to_i
 
-      tx.xquery('INSERT INTO `schedules` (`id`, `title`, `capacity`, `created_at`) VALUES (?, ?, ?, NOW(6))', id, title, capacity)
-      created_at = tx.xquery('SELECT `created_at` FROM `schedules` WHERE `id` = ?', id).first[:created_at]
+      tx.xquery('INSERT INTO `schedules` (`title`, `capacity`, `created_at`) VALUES (?, ?, NOW(6))', title, capacity)
+      created_at = tx.xquery('SELECT `created_at` FROM `schedules` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
 
       json({ id: id, title: title, capacity: capacity, created_at: created_at })
     end
@@ -161,7 +158,6 @@ class App < Sinatra::Base
     required_login!
 
     transaction do |tx|
-      id = generate_id('reservations', tx)
       schedule_id = params[:schedule_id].to_s
       user_id = current_user[:id]
 
@@ -178,8 +174,8 @@ class App < Sinatra::Base
 
       halt(403, JSON.generate(error: 'capacity is already full')) if reserved >= capacity
 
-      tx.xquery('INSERT INTO `reservations` (`id`, `schedule_id`, `user_id`, `created_at`) VALUES (?, ?, ?, NOW(6))', id, schedule_id, user_id)
-      created_at = tx.xquery('SELECT `created_at` FROM `reservations` WHERE `id` = ?', id).first[:created_at]
+      tx.xquery('INSERT INTO `reservations` (`id`, `schedule_id`, `user_id`, `created_at`) VALUES (?, ?, NOW(6))', schedule_id, user_id)
+      created_at = tx.xquery('SELECT `created_at` FROM `reservations` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
 
       json({ id: id, schedule_id: schedule_id, user_id: user_id, created_at: created_at})
     end
