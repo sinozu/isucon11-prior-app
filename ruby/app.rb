@@ -62,12 +62,12 @@ class App < Sinatra::Base
       EOS
       reservations = db.xquery(query, schedule[:id]).map do |r|
         reservation = {}
-        reservation[:id] = r[:reservation_id]
-        reservation[:schedule_id] = r[:schedule_id]
-        reservation[:user_id] = r[:user_id]
+        reservation[:id] = r[:reservation_id].to_s
+        reservation[:schedule_id] = r[:schedule_id].to_s
+        reservation[:user_id] = r[:user_id].to_s
         reservation[:created_at] = r[:reservation_created_at]
         user = {}
-        user[:id] = r[:user_id]
+        user[:id] = r[:user_id].to_s
         if current.present? && (current[:id] == r[:user_id] || current[:staff])
           user[:email] = r[:email]
         else
@@ -118,10 +118,10 @@ class App < Sinatra::Base
     user = transaction do |tx|
       email = params[:email]
       nickname = params[:nickname]
-      tx.xquery('INSERT INTO `users` (`id`, `email`, `nickname`, `created_at`) VALUES (?, ?, NOW(6))', email, nickname)
-      created_at = tx.xquery('SELECT `created_at` FROM `users` WHERE `id` = LAST_INSERT_ID() LIMIT 1').first[:created_at]
+      tx.xquery('INSERT INTO `users` (`email`, `nickname`, `created_at`) VALUES (?, ?, NOW(6))', email, nickname)
+      user = tx.xquery('SELECT `id`, `created_at` FROM `users` WHERE `id` = LAST_INSERT_ID() LIMIT 1').first
 
-      { id: id, email: email, nickname: nickname, created_at: created_at }
+      { id: user[:id].to_s, email: email, nickname: nickname, created_at: user[:created_at] }
     end
 
     json(user)
@@ -149,7 +149,7 @@ class App < Sinatra::Base
       capacity = params[:capacity].to_i
 
       tx.xquery('INSERT INTO `schedules` (`title`, `capacity`, `created_at`) VALUES (?, ?, NOW(6))', title, capacity)
-      schedule = tx.xquery('SELECT `id`, `created_at` FROM `schedules` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
+      schedule = tx.xquery('SELECT `id`, `created_at` FROM `schedules` WHERE `id` = LAST_INSERT_ID()').first
 
       json({ id: schedule[:id].to_s, title: title, capacity: capacity, created_at: schedule[:created_at] })
     end
@@ -159,8 +159,8 @@ class App < Sinatra::Base
     required_login!
 
     transaction do |tx|
-      schedule_id = params[:schedule_id].to_s
-      user_id = current_user[:id]
+      schedule_id = params[:schedule_id].to_i
+      user_id = current_user[:id].to_i
 
       halt(403, JSON.generate(error: 'schedule not found')) if tx.xquery('SELECT 1 FROM `schedules` WHERE `id` = ? LIMIT 1 FOR UPDATE', schedule_id).first.nil?
       halt(403, JSON.generate(error: 'user not found')) unless tx.xquery('SELECT 1 FROM `users` WHERE `id` = ? LIMIT 1', user_id).first
@@ -175,8 +175,8 @@ class App < Sinatra::Base
 
       halt(403, JSON.generate(error: 'capacity is already full')) if reserved >= capacity
 
-      tx.xquery('INSERT INTO `reservations` (`id`, `schedule_id`, `user_id`, `created_at`) VALUES (?, ?, NOW(6))', schedule_id, user_id)
-      reservation = tx.xquery('SELECT `id`, `created_at` FROM `reservations` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
+      tx.xquery('INSERT INTO `reservations` (`schedule_id`, `user_id`, `created_at`) VALUES (?, ?, NOW(6))', schedule_id, user_id)
+      reservation = tx.xquery('SELECT `id`, `created_at` FROM `reservations` WHERE `id` = LAST_INSERT_ID()').first
 
       json({ id: reservation[:id].to_s, schedule_id: schedule_id, user_id: user_id, created_at: reservation[:created_at]})
     end
@@ -185,16 +185,19 @@ class App < Sinatra::Base
   get '/api/schedules' do
     schedules = db.xquery('SELECT s.*, count(r.id) AS reserved FROM `schedules` AS s LEFT JOIN `reservations` AS r ON `r`.`schedule_id` = `s`.`id` GROUP BY s.id ORDER BY `s`.`id` DESC');
 
+    schedules.map do |schedule|
+      schedule[:id] = schedule[:id].to_s
+    end
+
     json(schedules.to_a)
   end
 
   get '/api/schedules/:id' do
-    id = params[:id]
+    id = params[:id].to_i
     schedule = db.xquery('SELECT * FROM `schedules` WHERE id = ? LIMIT 1', id).first
     halt(404, {}) unless schedule
-
     get_reservations(schedule)
-
+    schedule[:id] = schedule[:id].to_s
     json(schedule)
   end
 
