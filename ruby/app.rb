@@ -40,6 +40,7 @@ class App < Sinatra::Base
     end
 
     def current_user
+      # TODO:キャッシュする？
       db.xquery('SELECT * FROM `users` WHERE `id` = ? LIMIT 1', session[:user_id]).first
     end
 
@@ -133,7 +134,7 @@ class App < Sinatra::Base
 
     if user
       session[:user_id] = user[:id]
-      json({ id: current_user[:id], email: current_user[:email], nickname: current_user[:nickname], created_at: current_user[:created_at] })
+      json({ id: current_user[:id].to_s, email: current_user[:email], nickname: current_user[:nickname], created_at: current_user[:created_at] })
     else
       session[:user_id] = nil
       halt 403, JSON.generate({ error: 'login failed' })
@@ -148,9 +149,9 @@ class App < Sinatra::Base
       capacity = params[:capacity].to_i
 
       tx.xquery('INSERT INTO `schedules` (`title`, `capacity`, `created_at`) VALUES (?, ?, NOW(6))', title, capacity)
-      created_at = tx.xquery('SELECT `created_at` FROM `schedules` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
+      schedule = tx.xquery('SELECT `id`, `created_at` FROM `schedules` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
 
-      json({ id: id, title: title, capacity: capacity, created_at: created_at })
+      json({ id: schedule[:id].to_s, title: title, capacity: capacity, created_at: schedule[:created_at] })
     end
   end
 
@@ -175,9 +176,9 @@ class App < Sinatra::Base
       halt(403, JSON.generate(error: 'capacity is already full')) if reserved >= capacity
 
       tx.xquery('INSERT INTO `reservations` (`id`, `schedule_id`, `user_id`, `created_at`) VALUES (?, ?, NOW(6))', schedule_id, user_id)
-      created_at = tx.xquery('SELECT `created_at` FROM `reservations` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
+      reservation = tx.xquery('SELECT `id`, `created_at` FROM `reservations` WHERE `id` = LAST_INSERT_ID()').first[:created_at]
 
-      json({ id: id, schedule_id: schedule_id, user_id: user_id, created_at: created_at})
+      json({ id: reservation[:id].to_s, schedule_id: schedule_id, user_id: user_id, created_at: reservation[:created_at]})
     end
   end
 
