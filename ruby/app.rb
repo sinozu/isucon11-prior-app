@@ -40,8 +40,11 @@ class App < Sinatra::Base
     end
 
     def current_user
-      # TODO:キャッシュする？
-      db.xquery('SELECT * FROM `users` WHERE `id` = ? LIMIT 1', session[:user_id]).first
+      if session[:user].blank?
+        user = db.xquery('SELECT * FROM `users` WHERE `id` = ? LIMIT 1', session[:user_id]).first
+        session[:user] = user
+      end
+      session[:user]
     end
 
     def get_reservations(schedule)
